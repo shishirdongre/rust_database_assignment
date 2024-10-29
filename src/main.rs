@@ -55,18 +55,20 @@ fn main() {
                 Err(e) => eprintln!("{}", e),
             }
         }
-        ParsedCommand::DeleteTable { name } => {
-            println!("Delete table '{}' - Not implemented", name);
-        }
-        ParsedCommand::ListTable => {
-            println!("List all tables - Not implemented");
-            match db_manager.list_tables() {
-                Ok(_) => println!("Tables listed successfully."),
-                Err(e) => eprintln!("{}", e),
-            }
-        }
+        ParsedCommand::DropTable { name } => match db_manager.drop_table(&name) {
+            Ok(_) => println!("Table '{}' dropped .", name),
+            Err(e) => eprintln!("{}", e),
+        },
+        ParsedCommand::ListTable => match db_manager.list_tables() {
+            Ok(_) => println!("Tables listed successfully."),
+            Err(e) => eprintln!("{}", e),
+        },
         ParsedCommand::ListSchema { name } => {
             println!("List schema for table '{}' - Not implemented", name);
+            match db_manager.display_schema(&name) {
+                Ok(_) => {}
+                Err(e) => eprintln!("{}", e),
+            }
         }
         ParsedCommand::Select {
             columns,

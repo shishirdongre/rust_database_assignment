@@ -167,4 +167,45 @@ impl DatabaseManager {
             Ok(())
         }
     }
+
+    pub fn drop_table(&self, table_name: &str) -> Result<(), DatabaseError> {
+        let mut database = self.load_database();
+        let table_index = database
+            .tables
+            .iter()
+            .position(|table| table.name == table_name);
+        match table_index {
+            Some(index) => {
+                database.tables.remove(index);
+                self.save_database(&database);
+                Ok(())
+            }
+            None => Err(DatabaseError::TableDoesNotExist(table_name.to_string())),
+        }
+    }
+
+    pub fn display_schema(&self, table_name: &str) -> Result<(), DatabaseError> {
+        let database = self.load_database();
+        let table = database
+            .tables
+            .iter()
+            .find(|table| table.name == table_name);
+        match table {
+            Some(table) => {
+                println!("Schema for table '{}':", table_name);
+                for column in &table.columns {
+                    // println!(
+                    //     "  - Column: {} | Type: {:?} | Length: {} | Not Null: {}",
+                    //     column.name,
+                    //     ProtoColumnType::try_from(column.col_type).unwrap(),
+                    //     column.length,
+                    //     column.not_null
+                    // );
+                    println!("{:?}", column);
+                }
+                Ok(())
+            }
+            None => Err(DatabaseError::TableDoesNotExist(table_name.to_string())),
+        }
+    }
 }

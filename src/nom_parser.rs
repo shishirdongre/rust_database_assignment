@@ -14,7 +14,7 @@ pub enum Command {
         name: String,
         columns: Vec<Column>,
     },
-    DeleteTable {
+    DropTable {
         name: String,
     },
     ListTable,
@@ -91,15 +91,15 @@ fn create_table(input: &str) -> IResult<&str, Command> {
     ))
 }
 
-// DELETE TABLE parser
-fn delete_table(input: &str) -> IResult<&str, Command> {
-    let (input, _) = tag("DELETE FROM")(input)?;
+// DROP TABLE parser
+fn drop_table(input: &str) -> IResult<&str, Command> {
+    let (input, _) = tag("DROP TABLE")(input)?;
     let (input, _) = multispace0(input)?;
     let (input, name) = identifier(input)?;
     let (input, _) = opt(char(';'))(input)?; // Optional semicolon
     Ok((
         input,
-        Command::DeleteTable {
+        Command::DropTable {
             name: name.to_string(),
         },
     ))
@@ -162,7 +162,7 @@ fn select_columns(input: &str) -> IResult<&str, Vec<String>> {
 pub fn parse_command(input: &str) -> IResult<&str, Command> {
     alt((
         create_table,
-        delete_table,
+        drop_table,
         list_table,
         display_schema,
         select_statement,
