@@ -75,8 +75,25 @@ fn main() {
             table,
             join_table,
         } => {
-            println!("Select query on table '{}' - Not implemented", table);
+            match db_manager.select(ParsedCommand::Select {
+                columns,
+                table,
+                join_table,
+            }) {
+                Ok(_) => println!("Select executed successfully."),
+                Err(e) => eprintln!("{}", e),
+            }
         }
+        
+        ParsedCommand::Insert { table, values } => {
+            // match db_manager.insert(ParsedCommand::Insert { table, values }) {
+            //     Ok(_) => println!("Insert executed successfully."),
+            //     Err(e) => eprintln!("{}", e),
+            // }
+            println!("Insert not implemented.");
+        }
+
+
     }
 
     // Step 5: Print the updated database for verification

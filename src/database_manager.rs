@@ -1,7 +1,8 @@
 use crate::generated_types::generated_types::{
-    ColumnDefinition, ColumnType as ProtoColumnType, Database, TableDefinition,
+    ColumnDefinition, ColumnType as ProtoColumnType, Database, TableData, TableDefinition,
 };
 use crate::nom_parser::{Column, ColumnType, Command};
+use crate::table_definition::Table;
 use core::panic;
 use nom::Err;
 use prost::Message;
@@ -208,4 +209,84 @@ impl DatabaseManager {
             None => Err(DatabaseError::TableDoesNotExist(table_name.to_string())),
         }
     }
+    pub fn load_table(&self, table_name: &str) -> Result<TableData, DatabaseError> {
+        if self.has_table(table_name) {
+            return Err(DatabaseError::TableDoesNotExist(table_name.to_string()));
+        }
+        let database: Database = self.load_database();
+        let file_path = format!("{}.tab", table_name);
+        let path = Path::new(&file_path);
+        if path.exists() {
+            let mut file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(format!("{}.tab", table_name))
+                .expect("Failed to open file");
+
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer).expect("Failed to read file");
+            let table_data = TableData::decode(&*buffer).expect("Failed to decode database");
+            Ok(table_data)
+        } else {
+            Ok(TableData {
+                table_name: table_name.to_string(),
+                rows: Vec::new(),
+                num_rows: 0,
+            })
+        }
+    }
+
+    pub fn select(&self, command: Command) -> Result<(), DatabaseError> {
+        if let Command::Select {
+            columns,
+            table,
+            join_table,
+        } = command
+        {
+            let table_data = self.load_table(&table)?;
+
+            for rows in table_data.rows {
+                for cell in rows.cells {
+                    println!("{:?}", cell);
+                }
+            }
+            Ok(())
+        } else {
+            panic!("Invalid command passed to select");
+        }
+    }
+
+    // pub fn insert(&self, command: Command) -> Result<(), DatabaseError> {
+    //     if let Command::Insert { table, values } = command {
+    //         let table_data = self.load_table(&table)?;
+    //         let mut rows = table_data.rows;
+    //         let mut cells = Vec::new();
+    //         for value in values {
+    //             cells.push(value);
+    //         }
+    //         rows.push(cells);
+    //         let table_data = TableData {
+    //             table_name: table,
+    //             rows,
+    //             num_rows: rows.len() as u32,
+    //         };
+    //         let mut file = OpenOptions::new()
+    //             .create(true)
+    //             .write(true)
+    //             .truncate(true)
+    //             .open(format!("{}.tab", table))
+    //             .expect("Failed to open file");
+
+    //         let mut buffer = Vec::new();
+    //         table_data
+    //             .encode(&mut buffer)
+    //             .expect("Failed to encode database");
+
+    //         file.write_all(&buffer).expect("Failed to write to file");
+    //         Ok(())
+    //     } else {
+    //         panic!("Invalid command passed to insert");
+    //     }
+    // }
 }

@@ -9,6 +9,13 @@ use nom::{
 };
 
 #[derive(Debug)]
+pub enum Value {
+    Int(i64),
+    Str(String),
+    Null,
+}
+
+#[derive(Debug)]
 pub enum Command {
     CreateTable {
         name: String,
@@ -25,6 +32,10 @@ pub enum Command {
         columns: Vec<String>,
         table: String,
         join_table: Option<String>,
+    },
+    Insert {
+        table: String,
+        values: Vec<Vec<Value>>,
     },
 }
 
@@ -44,6 +55,31 @@ pub struct Column {
 // Utility parsers
 fn identifier(input: &str) -> IResult<&str, &str> {
     take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)
+}
+
+fn integer(input: &str) -> IResult<&str, Value> {
+    map(digit1, |s: &str| Value::Int(s.parse().unwrap()))(input)
+}
+
+fn string(input: &str) -> IResult<&str, Value> {
+    map(
+        delimited(char('\''), take_while1(|c| c != '\''), char('\'')),
+        |s: &str| Value::Str(s.to_string()),
+    )(input)
+}
+
+fn null_value(input: &str) -> IResult<&str, Value> {
+    map(tag("NULL"), |_| Value::Null)(input)
+}
+
+// Parse a single value
+fn value(input: &str) -> IResult<&str, Value> {
+    alt((integer, string, null_value))(input)
+}
+
+// Parser for a single tuple of values
+fn value_tuple(input: &str) -> IResult<&str, Vec<Value>> {
+    delimited(char('('), separated_list1(tag(", "), value), char(')'))(input)
 }
 
 // Column type parser to include optional length for STRING
@@ -156,6 +192,28 @@ fn select_columns(input: &str) -> IResult<&str, Vec<String>> {
         map(tag("*"), |_| vec!["*".to_string()]),
         separated_list0(tag(", "), map(identifier, String::from)),
     ))(input)
+}
+
+// Parser for INSERT INTO command with support for multiple tuples
+fn insert_into(input: &str) -> IResult<&str, Command> {
+    let (input, _) = tag("INSERT INTO")(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, table) = identifier(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, _) = tag("VALUES")(input)?;
+    let (input, _) = multispace0(input)?;
+
+    // Parse one or more tuples, separated by commas
+    let (input, values) = separated_list1(tag(", "), value_tuple)(input)?;
+    let (input, _) = opt(char(';'))(input)?; // Optional semicolon
+
+    Ok((
+        input,
+        Command::Insert {
+            table: table.to_string(),
+            values,
+        },
+    ))
 }
 
 // Top-level parser for any command
