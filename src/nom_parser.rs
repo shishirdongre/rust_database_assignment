@@ -4,12 +4,12 @@ use nom::{
     character::complete::{char, digit1, multispace0},
     combinator::{map, opt},
     multi::separated_list0,
-    sequence::{delimited, pair, preceded, separated_pair, tuple},
+    sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
 };
 
 #[derive(Debug)]
-enum Command {
+pub enum Command {
     CreateTable {
         name: String,
         columns: Vec<Column>,
@@ -29,13 +29,13 @@ enum Command {
 }
 
 #[derive(Debug)]
-enum ColumnType {
+pub enum ColumnType {
     INT,
-    STRING(u32),
+    STRING(u64),
 }
 
 #[derive(Debug)]
-struct Column {
+pub struct Column {
     name: String,
     col_type: ColumnType,
     not_null: bool,
@@ -46,18 +46,18 @@ fn identifier(input: &str) -> IResult<&str, &str> {
     take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)
 }
 
-// Updated column_type parser to include optional length for STRING
+// Column type parser to include optional length for STRING
 fn column_type(input: &str) -> IResult<&str, ColumnType> {
     alt((
         map(tag("INT"), |_| ColumnType::INT),
         map(delimited(tag("STRING("), digit1, tag(")")), |len: &str| {
-            ColumnType::STRING(len.parse::<u32>().unwrap_or(256))
+            ColumnType::STRING(len.parse::<u64>().unwrap_or(256))
         }),
         map(tag("STRING"), |_| ColumnType::STRING(256)), // Default STRING length is 256 if not specified
     ))(input)
 }
 
-// Parser for "CREATE TABLE" command with optional "NOT NULL" for columns
+// CREATE TABLE parser with optional "NOT NULL" for columns
 fn create_table(input: &str) -> IResult<&str, Command> {
     let (input, _) = tag("CREATE TABLE")(input)?;
     let (input, _) = multispace0(input)?;
@@ -80,6 +80,7 @@ fn create_table(input: &str) -> IResult<&str, Command> {
         ),
     )(input)?;
     let (input, _) = char(')')(input)?;
+    let (input, _) = opt(char(';'))(input)?; // Optional semicolon
 
     Ok((
         input,
@@ -90,10 +91,12 @@ fn create_table(input: &str) -> IResult<&str, Command> {
     ))
 }
 
+// DELETE TABLE parser
 fn delete_table(input: &str) -> IResult<&str, Command> {
     let (input, _) = tag("DELETE FROM")(input)?;
     let (input, _) = multispace0(input)?;
     let (input, name) = identifier(input)?;
+    let (input, _) = opt(char(';'))(input)?; // Optional semicolon
     Ok((
         input,
         Command::DeleteTable {
@@ -102,15 +105,19 @@ fn delete_table(input: &str) -> IResult<&str, Command> {
     ))
 }
 
+// LIST TABLE parser
 fn list_table(input: &str) -> IResult<&str, Command> {
-    let (input, _) = tag("LIST TABLE")(input)?;
+    let (input, _) = tag("LIST TABLES")(input)?;
+    let (input, _) = opt(char(';'))(input)?; // Optional semicolon
     Ok((input, Command::ListTable))
 }
 
+// LIST SCHEMA parser
 fn list_schema(input: &str) -> IResult<&str, Command> {
-    let (input, _) = tag("LIST SCHEMA")(input)?;
+    let (input, _) = tag("SCHEMA")(input)?;
     let (input, _) = multispace0(input)?;
     let (input, name) = identifier(input)?;
+    let (input, _) = opt(char(';'))(input)?; // Optional semicolon
     Ok((
         input,
         Command::ListSchema {
@@ -119,13 +126,7 @@ fn list_schema(input: &str) -> IResult<&str, Command> {
     ))
 }
 
-fn select_columns(input: &str) -> IResult<&str, Vec<String>> {
-    alt((
-        map(tag("*"), |_| vec!["*".to_string()]),
-        separated_list0(tag(", "), map(identifier, String::from)),
-    ))(input)
-}
-
+// SELECT statement parser
 fn select_statement(input: &str) -> IResult<&str, Command> {
     let (input, _) = tag("SELECT")(input)?;
     let (input, _) = multispace0(input)?;
@@ -138,6 +139,7 @@ fn select_statement(input: &str) -> IResult<&str, Command> {
         pair(multispace0, tag("JOIN")),
         preceded(multispace0, identifier),
     ))(input)?;
+    let (input, _) = opt(char(';'))(input)?; // Optional semicolon
     Ok((
         input,
         Command::Select {
@@ -146,6 +148,14 @@ fn select_statement(input: &str) -> IResult<&str, Command> {
             join_table: join_table.map(|s| s.to_string()),
         },
     ))
+}
+
+// Helper parser for SELECT columns
+fn select_columns(input: &str) -> IResult<&str, Vec<String>> {
+    alt((
+        map(tag("*"), |_| vec!["*".to_string()]),
+        separated_list0(tag(", "), map(identifier, String::from)),
+    ))(input)
 }
 
 // Top-level parser for any command
@@ -159,17 +169,17 @@ fn parse_command(input: &str) -> IResult<&str, Command> {
     ))(input)
 }
 
-// Test case to parse and pretty-print each command
+// Test cases to parse and pretty-print each command
 pub fn run_parser() {
     let tests = vec![
-        "CREATE TABLE users (id INT, name STRING(20))",
-        "DELETE FROM orders",
-        "LIST TABLE",
-        "LIST SCHEMA users",
-        "SELECT * FROM users JOIN orders",
-        "SELECT id, name FROM users",
-        "CREATE TABLE users (id INT, name STRING(20) NOT NULL, age INT NOT NULL)",
-        "CREATE TABLE products (code STRING(10), price INT)",
+        "CREATE TABLE users (id INT, name STRING(20));",
+        "DELETE FROM orders;",
+        "LIST TABLES;",
+        "SCHEMA users;",
+        "SELECT * FROM users JOIN orders;",
+        "SELECT id, name FROM users;",
+        "CREATE TABLE users (id INT, name STRING(20) NOT NULL, age INT NOT NULL);",
+        "CREATE TABLE products (code STRING(10), price INT);",
     ];
 
     for test in tests {
