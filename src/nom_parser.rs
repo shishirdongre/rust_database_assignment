@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{char, digit1, multispace0},
     combinator::{map, opt},
-    multi::separated_list0,
+    multi::{separated_list0, separated_list1},
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
 };
@@ -64,7 +64,7 @@ fn create_table(input: &str) -> IResult<&str, Command> {
     let (input, name) = identifier(input)?;
     let (input, _) = multispace0(input)?;
     let (input, _) = char('(')(input)?;
-    let (input, columns) = separated_list0(
+    let (input, columns) = separated_list1(
         tag(", "),
         map(
             tuple((
@@ -112,8 +112,8 @@ fn list_table(input: &str) -> IResult<&str, Command> {
     Ok((input, Command::ListTable))
 }
 
-// LIST SCHEMA parser
-fn list_schema(input: &str) -> IResult<&str, Command> {
+// SCHEMA parser
+fn display_schema(input: &str) -> IResult<&str, Command> {
     let (input, _) = tag("SCHEMA")(input)?;
     let (input, _) = multispace0(input)?;
     let (input, name) = identifier(input)?;
@@ -164,7 +164,7 @@ pub fn parse_command(input: &str) -> IResult<&str, Command> {
         create_table,
         delete_table,
         list_table,
-        list_schema,
+        display_schema,
         select_statement,
     ))(input)
 }
