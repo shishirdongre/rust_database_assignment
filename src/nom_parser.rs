@@ -36,9 +36,9 @@ pub enum ColumnType {
 
 #[derive(Debug)]
 pub struct Column {
-    name: String,
-    col_type: ColumnType,
-    not_null: bool,
+    pub name: String,
+    pub col_type: ColumnType,
+    pub not_null: bool,
 }
 
 // Utility parsers
@@ -159,7 +159,7 @@ fn select_columns(input: &str) -> IResult<&str, Vec<String>> {
 }
 
 // Top-level parser for any command
-fn parse_command(input: &str) -> IResult<&str, Command> {
+pub fn parse_command(input: &str) -> IResult<&str, Command> {
     alt((
         create_table,
         delete_table,

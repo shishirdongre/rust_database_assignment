@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package database;
+
+// Column data types
+enum ColumnType {
+    INT = 0;
+    STRING = 1;
+}
+
+// Represents a column definition (name, type, optional length for strings, nullable flag)
+message ColumnDefinition {
+    string name = 1;
+    ColumnType col_type = 2;
+    uint32 length = 3; // Optional, used only for STRING types
+    bool not_null = 4; // Indicates if the column is NOT NULL
+}
+
+// Represents a single cell value in a row
+message CellValue {
+    oneof value {
+        int32 int_val = 1;
+        string str_val = 2;
+        // Add more types as needed (e.g., float, double)
+    }
+}
+
+// Represents a row, with cells in a defined order based on ColumnDefinition
+message Row {
+    repeated CellValue cells = 1;
+}
+
+// Represents a table, containing metadata and data rows
+message TableDefinition {
+    string name = 1; // Table name
+    repeated ColumnDefinition columns = 2; // Column definitions
+}
+
+message Database {
+    repeated TableDefinition tables = 1; // Table definitions
+}
+
+message TableData {
+    string table_name = 1; // Table name
+    uint32 num_rows = 2; // Number of rows in the table
+    repeated Row rows = 3; // Rows in the table
+}
