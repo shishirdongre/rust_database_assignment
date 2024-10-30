@@ -16,7 +16,7 @@ pub struct ColumnDefinition {
 /// Represents a single cell value in a row
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CellValue {
-    #[prost(oneof = "cell_value::Value", tags = "1, 2")]
+    #[prost(oneof = "cell_value::Value", tags = "1, 2, 3")]
     pub value: ::core::option::Option<cell_value::Value>,
 }
 /// Nested message and enum types in `CellValue`.
@@ -25,9 +25,11 @@ pub mod cell_value {
     pub enum Value {
         #[prost(int32, tag = "1")]
         IntVal(i32),
-        /// Add more types as needed (e.g., float, double)
         #[prost(string, tag = "2")]
         StrVal(::prost::alloc::string::String),
+        /// Add more types as needed (e.g., float, double)
+        #[prost(bool, tag = "3")]
+        NullVal(bool),
     }
 }
 /// Represents a row, with cells in a defined order based on ColumnDefinition

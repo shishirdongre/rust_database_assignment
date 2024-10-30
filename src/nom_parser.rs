@@ -10,7 +10,7 @@ use nom::{
 
 #[derive(Debug)]
 pub enum Value {
-    Int(i64),
+    Int(i32),
     Str(String),
     Null,
 }
@@ -42,7 +42,7 @@ pub enum Command {
 #[derive(Debug)]
 pub enum ColumnType {
     INT,
-    STRING(u64),
+    STRING(u32),
 }
 
 #[derive(Debug)]
@@ -87,7 +87,7 @@ fn column_type(input: &str) -> IResult<&str, ColumnType> {
     alt((
         map(tag("INT"), |_| ColumnType::INT),
         map(delimited(tag("STRING("), digit1, tag(")")), |len: &str| {
-            ColumnType::STRING(len.parse::<u64>().unwrap_or(256))
+            ColumnType::STRING(len.parse::<u32>().unwrap_or(256))
         }),
         map(tag("STRING"), |_| ColumnType::STRING(256)), // Default STRING length is 256 if not specified
     ))(input)
@@ -224,6 +224,7 @@ pub fn parse_command(input: &str) -> IResult<&str, Command> {
         list_table,
         display_schema,
         select_statement,
+        insert_into
     ))(input)
 }
 
@@ -236,8 +237,11 @@ pub fn run_parser() {
         "SCHEMA users;",
         "SELECT * FROM users JOIN orders;",
         "SELECT id, name FROM users;",
+        "SELECT * FROM users;",
         "CREATE TABLE users (id INT, name STRING(20) NOT NULL, age INT NOT NULL);",
         "CREATE TABLE products (code STRING(10), price INT);",
+        "INSERT INTO users VALUES (1, 'John Doe');", // Single tuple insert
+        "INSERT INTO users VALUES (1, 'John Doe'), (2, 'Jane Smith');", // Multi-tuple insert
     ];
 
     for test in tests {

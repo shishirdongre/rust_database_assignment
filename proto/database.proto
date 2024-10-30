@@ -21,6 +21,7 @@ message CellValue {
     oneof value {
         int32 int_val = 1;
         string str_val = 2;
+        bool null_val = 3;
         // Add more types as needed (e.g., float, double)
     }
 }

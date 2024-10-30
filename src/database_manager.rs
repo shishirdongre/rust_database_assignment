@@ -1,16 +1,18 @@
 use crate::generated_types::generated_types::{
-    ColumnDefinition, ColumnType as ProtoColumnType, Database, TableData, TableDefinition,
+    cell_value, CellValue, ColumnDefinition, ColumnType as ProtoColumnType, Database, Row,
+    TableData, TableDefinition,
 };
-use crate::nom_parser::{Column, ColumnType, Command};
+use crate::nom_parser::{Column, ColumnType, Command, Value};
 use crate::table_definition::Table;
 use core::panic;
 use nom::Err;
 use prost::Message;
+use std::cell::Cell;
 use std::error::Error;
-use std::fmt;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::{cell, fmt};
 
 // Define a custom error type
 #[derive(Debug)]
@@ -210,7 +212,7 @@ impl DatabaseManager {
         }
     }
     pub fn load_table(&self, table_name: &str) -> Result<TableData, DatabaseError> {
-        if self.has_table(table_name) {
+        if !self.has_table(table_name) {
             return Err(DatabaseError::TableDoesNotExist(table_name.to_string()));
         }
         let database: Database = self.load_database();
@@ -218,9 +220,7 @@ impl DatabaseManager {
         let path = Path::new(&file_path);
         if path.exists() {
             let mut file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
+                .read(true)
                 .open(format!("{}.tab", table_name))
                 .expect("Failed to open file");
 
@@ -244,12 +244,51 @@ impl DatabaseManager {
             join_table,
         } = command
         {
+            let database = self.load_database();
+            if !self.has_table(&table) {
+                return Err(DatabaseError::TableDoesNotExist(table));
+            }
+
+            let table_definition = database
+                .tables
+                .iter()
+                .find(|table_def| table_def.name == table)
+                .expect("Table not found");
+
             let table_data = self.load_table(&table)?;
 
-            for rows in table_data.rows {
-                for cell in rows.cells {
-                    println!("{:?}", cell);
+            println!("Table: {:?}", table_data);
+
+            // Print column headers with fixed width of 30 for each column
+            for col in table_definition.columns.iter() {
+                print!("{:<30}", col.name); // Left-align each column header with padding
+            }
+            println!();
+
+            // Print separator line with width of 80
+            println!("{}", "-".repeat(80));
+
+            // Print each row's values
+            for row in table_data.rows {
+                for cell in &row.cells {
+                    match cell {
+                        CellValue {
+                            value: Some(cell_value::Value::IntVal(v)),
+                        } => print!("{:<30}", v),
+                        CellValue {
+                            value: Some(cell_value::Value::StrVal(s)),
+                        } => print!("{:<30}", s),
+                        CellValue { value: None } => print!("{:<30}", "NULL"),
+                        CellValue {
+                            value: Some(cell_value::Value::NullVal(is_null)),
+                        } => {
+                            if *is_null {
+                                print!("{:<30}", "NULL");
+                            }
+                        }
+                    }
                 }
+                println!(); // End of row
             }
             Ok(())
         } else {
@@ -257,36 +296,73 @@ impl DatabaseManager {
         }
     }
 
-    // pub fn insert(&self, command: Command) -> Result<(), DatabaseError> {
-    //     if let Command::Insert { table, values } = command {
-    //         let table_data = self.load_table(&table)?;
-    //         let mut rows = table_data.rows;
-    //         let mut cells = Vec::new();
-    //         for value in values {
-    //             cells.push(value);
-    //         }
-    //         rows.push(cells);
-    //         let table_data = TableData {
-    //             table_name: table,
-    //             rows,
-    //             num_rows: rows.len() as u32,
-    //         };
-    //         let mut file = OpenOptions::new()
-    //             .create(true)
-    //             .write(true)
-    //             .truncate(true)
-    //             .open(format!("{}.tab", table))
-    //             .expect("Failed to open file");
+    pub fn insert(&self, command: Command) -> Result<(), DatabaseError> {
+        println!("Insert command: {:?}", command);
+        if let Command::Insert { table, values } = command {
+            let table_data = self.load_table(&table)?;
+            let mut new_rows = Vec::new();
+            // Convert each `nom_parser::Value` to `CellValue`
+            let mut cells = Vec::new();
 
-    //         let mut buffer = Vec::new();
-    //         table_data
-    //             .encode(&mut buffer)
-    //             .expect("Failed to encode database");
+            for row in values {
+                for cell_value in row {
+                    println!("{:?}", cell_value);
+                    match cell_value {
+                        Value::Int(v) => {
+                            println!("int value {:?}", v);
+                            cells.push(CellValue {
+                                value: Some(cell_value::Value::IntVal(v)),
+                            });
+                        }
+                        Value::Str(s) => {
+                            println!("string value {:?}", s);
+                            cells.push(CellValue {
+                                value: Some(cell_value::Value::StrVal(s)),
+                            });
+                        }
+                        Value::Null => {
+                            println!("Null value found");
+                            cells.push(CellValue { value: None });
+                        }
+                    }
+                    new_rows.push(Row {
+                        cells: cells.clone(),
+                    });
+                }
+                // rows.push(table_row);
+                // table_row.clear();
+                cells.clear();
+            }
 
-    //         file.write_all(&buffer).expect("Failed to write to file");
-    //         Ok(())
-    //     } else {
-    //         panic!("Invalid command passed to insert");
-    //     }
-    // }
+            let mut all_rows = table_data.rows.clone();
+            all_rows.extend(new_rows);
+            let len = all_rows.len();
+
+            let table_data = TableData {
+                table_name: table,
+                rows: all_rows,
+                num_rows: len as u32,
+            };
+
+            println!("table_data : {:?}", table_data);
+
+            let mut file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(format!("{}.tab", table_data.table_name))
+                .expect("Failed to open file");
+
+            let mut buffer = Vec::new();
+            table_data
+                .encode(&mut buffer)
+                .expect("Failed to encode database");
+
+            file.write_all(&buffer).expect("Failed to write to file");
+            file.sync_all().expect("Failed to sync file");
+            Ok(())
+        } else {
+            panic!("Invalid command passed to insert");
+        }
+    }
 }

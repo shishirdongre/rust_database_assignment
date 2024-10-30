@@ -13,7 +13,7 @@ use clap::Parser as ClapParser;
 use column_definition::{Column, ColumnType};
 use database_manager::{DatabaseError, DatabaseManager};
 use file_manager::FileManager;
-use nom_parser::{parse_command, Command as ParsedCommand};
+use nom_parser::{parse_command, run_parser, Command as ParsedCommand};
 use parser::Parser;
 use table_definition::Table;
 use token::{Token, TokenType};
@@ -28,6 +28,9 @@ struct Cli {
 }
 
 fn main() {
+    // run_parser();
+    // return;
+
     // Step 1: Parse the command-line arguments
     let args = Cli::parse();
 
@@ -86,17 +89,15 @@ fn main() {
         }
         
         ParsedCommand::Insert { table, values } => {
-            // match db_manager.insert(ParsedCommand::Insert { table, values }) {
-            //     Ok(_) => println!("Insert executed successfully."),
-            //     Err(e) => eprintln!("{}", e),
-            // }
+            match db_manager.insert(ParsedCommand::Insert { table, values }) {
+                Ok(_) => println!("Insert executed successfully."),
+                Err(e) => eprintln!("{}", e),
+            }
             println!("Insert not implemented.");
         }
-
-
     }
 
     // Step 5: Print the updated database for verification
-    let database = db_manager.load_database();
+    // let database = db_manager.load_database();
     // println!("Current Database: {:#?}", database.tables);
 }
