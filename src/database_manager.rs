@@ -227,6 +227,7 @@ impl DatabaseManager {
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer).expect("Failed to read file");
             let table_data = TableData::decode(&*buffer).expect("Failed to decode database");
+            // println!("table_data {:?}", table_data);
             Ok(table_data)
         } else {
             Ok(TableData {
@@ -257,7 +258,7 @@ impl DatabaseManager {
 
             let table_data = self.load_table(&table)?;
 
-            println!("Table: {:?}", table_data);
+            // println!("Table: {:?}", table_data);
 
             // Print column headers with fixed width of 30 for each column
             for col in table_definition.columns.iter() {
@@ -278,7 +279,6 @@ impl DatabaseManager {
                         CellValue {
                             value: Some(cell_value::Value::StrVal(s)),
                         } => print!("{:<30}", s),
-                        CellValue { value: None } => print!("{:<30}", "NULL"),
                         CellValue {
                             value: Some(cell_value::Value::NullVal(is_null)),
                         } => {
@@ -286,6 +286,7 @@ impl DatabaseManager {
                                 print!("{:<30}", "NULL");
                             }
                         }
+                        CellValue { value: None } => print!("{:<30}", "Matched None"),
                     }
                 }
                 println!(); // End of row
@@ -306,23 +307,28 @@ impl DatabaseManager {
 
             for row in values {
                 for cell_value in row {
-                    println!("{:?}", cell_value);
+                    if cfg!(debug_assertions) {
+                        println!("{:?}", cell_value);
+                    }
+
                     match cell_value {
                         Value::Int(v) => {
-                            println!("int value {:?}", v);
+                            // println!("int value {:?}", v);
                             cells.push(CellValue {
                                 value: Some(cell_value::Value::IntVal(v)),
                             });
                         }
                         Value::Str(s) => {
-                            println!("string value {:?}", s);
+                            // println!("string value {:?}", s);
                             cells.push(CellValue {
                                 value: Some(cell_value::Value::StrVal(s)),
                             });
                         }
                         Value::Null => {
-                            println!("Null value found");
-                            cells.push(CellValue { value: None });
+                            // println!("Null value found");
+                            cells.push(CellValue {
+                                value: Some(cell_value::Value::NullVal(true)),
+                            });
                         }
                     }
                     new_rows.push(Row {
@@ -344,7 +350,7 @@ impl DatabaseManager {
                 num_rows: len as u32,
             };
 
-            println!("table_data : {:?}", table_data);
+            // println!("table_data : {:?}", table_data);
 
             let mut file = OpenOptions::new()
                 .create(true)

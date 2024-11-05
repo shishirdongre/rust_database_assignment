@@ -224,7 +224,7 @@ pub fn parse_command(input: &str) -> IResult<&str, Command> {
         list_table,
         display_schema,
         select_statement,
-        insert_into
+        insert_into,
     ))(input)
 }
 
@@ -246,7 +246,11 @@ pub fn run_parser() {
 
     for test in tests {
         match parse_command(test) {
-            Ok((_, command)) => println!("{:?}", command),
+            Ok((_, command)) => {
+                if cfg!(debug_assertions) {
+                    println!("{:?}", command);
+                }
+            }
             Err(e) => println!("Error parsing '{}': {:?}", test, e),
         }
     }

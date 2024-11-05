@@ -1,16 +1,15 @@
 
-
+’
+users
+id 
+usernamed 
+age
+emaild 
+phone
+city2 
+state2
 
-employees2
-id
- 
+zip_code
+account_balance
 
-employees1
-id
-named 
-&
-
-employees3
-id
-
-first_named 
+membership 

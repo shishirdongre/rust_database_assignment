@@ -67,7 +67,6 @@ fn main() {
             Err(e) => eprintln!("{}", e),
         },
         ParsedCommand::ListSchema { name } => {
-            println!("List schema for table '{}' - Not implemented", name);
             match db_manager.display_schema(&name) {
                 Ok(_) => {}
                 Err(e) => eprintln!("{}", e),
@@ -93,7 +92,6 @@ fn main() {
                 Ok(_) => println!("Insert executed successfully."),
                 Err(e) => eprintln!("{}", e),
             }
-            println!("Insert not implemented.");
         }
     }
 
